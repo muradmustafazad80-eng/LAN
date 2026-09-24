@@ -28,7 +28,7 @@ const settings = [
   ['email_reservation', 'rezerv@kralbarber.az'],
   ['instagram_url', '#'],
   ['facebook_url', '#'],
-  ['map_url', 'https://www.openstreetmap.org/export/embed.html?bbox=49.83%2C40.36%2C49.87%2C40.39&layer=mapnik'],
+  ['map_url', 'https://openstreetmap.org'],
   ['cancellation_window_minutes', '120'],
   ['reschedule_window_minutes', '120'],
   ['slot_interval_minutes', '30'],
@@ -50,7 +50,8 @@ async function main() {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    const business = (await client.query(`SELECT "id" FROM "Business" WHERE "slug"='kral-barber' LIMIT 1`)).rows[0]
+    const businessRes = await client.query(`SELECT "id" FROM "Business" WHERE "slug"='kral-barber' LIMIT 1`)
+    const business = businessRes.rows[0]
     if (!business) throw new Error('Default business not found. Run npm run db:migrate first.')
     const businessId = business.id
 
@@ -63,17 +64,17 @@ async function main() {
     const customerHash = await hashPassword(process.env.DEMO_CUSTOMER_PASSWORD || demoPassword)
 
     const adminUser = await client.query(`INSERT INTO "User" ("id", "businessId","email","passwordHash","role") VALUES ($1,$2,'admin@kralbarber.local',$3,'admin') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='admin' RETURNING "id"`, [crypto.randomUUID(), businessId, adminHash])
-    const adminUserId = adminUser.rows[0].id
 
     for (const [name, specialty, experience, image, email] of barbers) {
       const passwordHash = await hashPassword(demoPassword)
-      const user = await client.query(`INSERT INTO "User" ("id", "businessId","email","passwordHash","role") VALUES ($1,$2,$3,$4,'barber') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='barber' RETURNING "id"`, [crypto.randomUUID(), businessId, email, passwordHash])
+      const user = await client.query(`INSERT INTO "User" ("id", "businessId","email","passwordHash","role") VALUES ($1,$2,$3,'barber') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='barber' RETURNING "id"`, [crypto.randomUUID(), businessId, email, passwordHash])
       await client.query(`INSERT INTO "Barber" ("id", "businessId","userId","name","specialty","experience","image","status") VALUES ($1,$2,$3,$4,$5,$6,$7,'active') ON CONFLICT ("businessId","name") DO UPDATE SET "userId"=EXCLUDED."userId", "specialty"=EXCLUDED."specialty", "experience"=EXCLUDED."experience", "image"=EXCLUDED."image", "status"='active'`, [crypto.randomUUID(), businessId, user.rows[0].id, name, specialty, experience, image])
     }
 
+    // Bərbər iş saatları cədvəlindən "id" sütunu tamamilə silindi
     await client.query(`
-      INSERT INTO "BarberSchedule" ("id", "barberId","weekday","startTime","endTime","isWorking")
-      SELECT gen_random_uuid(), "id", d.weekday,
+      INSERT INTO "BarberSchedule" ("barberId","weekday","startTime","endTime","isWorking")
+      SELECT "id", d.weekday,
              CASE WHEN d.weekday = 0 THEN '11:00'::time ELSE '10:00'::time END,
              CASE WHEN d.weekday = 0 THEN '20:00'::time ELSE '22:00'::time END,
              true
@@ -93,7 +94,6 @@ async function main() {
       customersByPhone.set(phone, customer.rows[0].id)
       const barber = await client.query(`SELECT "id" FROM "Barber" WHERE "businessId"=$1 AND "name"=$2 LIMIT 1`, [businessId, barberName])
       
-      // Konflikt yaradan hissə sadə sətirlə əvəz olundu (Təkrar rəy xətası verməsin deyə)
       await client.query(`INSERT INTO "Review" ("id", "businessId","customerId","barberId","rating","comment") VALUES ($1,$2,$3,$4,$5,$6)`, [crypto.randomUUID(), businessId, customer.rows[0].id, barber.rows[0].id, rating, comment])
     }
 

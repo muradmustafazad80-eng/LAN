@@ -1,9 +1,59 @@
-import './load-env.mjs'
+import fs from 'node:fs'
+import path from 'node:path'
 import crypto from 'node:crypto'
+import process from 'node:process'
 import pg from 'pg'
 
 const { Pool } = pg
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+
+function loadEnvFiles() {
+  const rootDir = process.cwd()
+  const files = ['.env.local', '.env']
+
+  for (const fileName of files) {
+    const filePath = path.join(rootDir, fileName)
+
+    if (!fs.existsSync(filePath)) continue
+
+    const content = fs.readFileSync(filePath, 'utf8')
+
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim()
+
+      if (!trimmed || trimmed.startsWith('#')) continue
+
+      const equalIndex = trimmed.indexOf('=')
+
+      if (equalIndex === -1) continue
+
+      const key = trimmed.slice(0, equalIndex).trim()
+      let value = trimmed.slice(equalIndex + 1).trim()
+
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1)
+      }
+
+      if (process.env[key] === undefined) {
+        process.env[key] = value
+      }
+    }
+  }
+}
+
+loadEnvFiles()
+
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    'DATABASE_URL tapılmadı. .env.local və ya .env faylında DATABASE_URL olmalıdır.'
+  )
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+})
 
 const services = [
   ['Klassik saç kəsimi', 25, 30, 'Hair', 'yuma + styling'],
@@ -11,13 +61,37 @@ const services = [
   ['Saqqal formalaşdırma', 20, 25, 'Beard', 'isti dəsmal daxil'],
   ['Royal ülgüc təraş', 30, 30, 'Beard', 'ənənəvi ritual'],
   ['Uşaq kəsimi', 18, 30, 'Hair', '12 yaşa qədər'],
-  ['KRAL VIP Paket', 75, 75, 'VIP', 'Premium saç kəsimi|Saqqal formalaşdırma + ülgüc|Üz maskası və qulluq|Saç yuma & massaj|Pulsuz içki və qəlyan'],
+  [
+    'KRAL VIP Paket',
+    75,
+    75,
+    'VIP',
+    'Premium saç kəsimi|Saqqal formalaşdırma + ülgüc|Üz maskası və qulluq|Saç yuma & massaj|Pulsuz içki və qəlyan',
+  ],
 ]
 
 const barbers = [
-  ['Elvin Məmmədov', 'Baş Usta / Qurucu', '12 il təcrübə', '/images/barber-1.png', 'elvin@kralbarber.local'],
-  ['Rəşad Quliyev', 'Fade & Modern Kəsim Ustası', '7 il təcrübə', '/images/barber-2.png', 'resad@kralbarber.local'],
-  ['Kamran Əliyev', 'Klassik Ülgüc & Saqqal Ustası', '15 il təcrübə', '/images/barber-3.png', 'kamran@kralbarber.local'],
+  [
+    'Elvin Məmmədov',
+    'Baş Usta / Qurucu',
+    '12 il təcrübə',
+    '/images/barber-1.png',
+    'elvin@kralbarber.local',
+  ],
+  [
+    'Rəşad Quliyev',
+    'Fade & Modern Kəsim Ustası',
+    '7 il təcrübə',
+    '/images/barber-2.png',
+    'resad@kralbarber.local',
+  ],
+  [
+    'Kamran Əliyev',
+    'Klassik Ülgüc & Saqqal Ustası',
+    '15 il təcrübə',
+    '/images/barber-3.png',
+    'kamran@kralbarber.local',
+  ],
 ]
 
 const settings = [
@@ -37,41 +111,68 @@ const settings = [
 ]
 
 const reviews = [
-  ['Tural H.', '994501000001', 'Elvin Məmmədov', 5, 'Şəhərdə ən yaxşı barbershop. Elvin usta işini mükəmməl bilir, hər dəfə tam istədiyim görünüşü alıram.'],
-  ['Nicat A.', '994501000002', 'Rəşad Quliyev', 5, 'VIP paketi aldım — ülgüc təraş və üz maskası inanılmaz idi. Atmosfer həqiqətən premium.'],
-  ['Orxan M.', '994501000003', 'Kamran Əliyev', 5, 'Saqqal formalaşdırma üçün gəlirəm. Detallara diqqət və peşəkarlık başqa səviyyədədir.'],
-  ['Səməd V.', '994501000004', 'Elvin Məmmədov', 5, 'Rezervasiya sistemi çox rahatdır, gözləmə yoxdur. Qiymət-keyfiyyət balansı əladır.'],
+  [
+    'Tural H.',
+    '994501000001',
+    'Elvin Məmmədov',
+    5,
+    'Şəhərdə ən yaxşı barbershop. Elvin usta işini mükəmməl bilir, hər dəfə tam istədiyim görünüşü alıram.',
+  ],
+  [
+    'Nicat A.',
+    '994501000002',
+    'Rəşad Quliyev',
+    5,
+    'VIP paketi aldım — ülgüc təraş və üz maskası inanılmaz idi. Atmosfer həqiqətən premium.',
+  ],
+  [
+    'Orxan M.',
+    '994501000003',
+    'Kamran Əliyev',
+    5,
+    'Saqqal formalaşdırma üçün gəlirəm. Detallara diqqət və peşəkarlık başqa səviyyədədir.',
+  ],
+  [
+    'Səməd V.',
+    '994501000004',
+    'Elvin Məmmədov',
+    5,
+    'Rezervasiya sistemi çox rahatdır, gözləmə yoxdur. Qiymət-keyfiyyət balansı əladır.',
+  ],
 ]
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex')
 
-  return new Promise((resolve, reject) =>
+  return new Promise((resolve, reject) => {
     crypto.scrypt(
       password,
       salt,
       64,
       { N: 16384, r: 8, p: 1 },
-      (error, key) =>
-        error
-          ? reject(error)
-          : resolve(`scrypt$${salt}$${key.toString('hex')}`)
+      (error, key) => {
+        if (error) {
+          reject(error)
+          return
+        }
+
+        resolve(`scrypt$${salt}$${key.toString('hex')}`)
+      }
     )
-  )
+  })
 }
 
 async function main() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is required.')
-  }
-
   const client = await pool.connect()
 
   try {
     await client.query('BEGIN')
 
     const businessRes = await client.query(
-      `SELECT "id" FROM "Business" WHERE "slug"='kral-barber' LIMIT 1`
+      `SELECT "id"
+       FROM "Business"
+       WHERE "slug"='kral-barber'
+       LIMIT 1`
     )
 
     if (businessRes.rows.length === 0) {
@@ -125,11 +226,7 @@ async function main() {
          "passwordHash"=EXCLUDED."passwordHash",
          "role"='admin'
        RETURNING "id"`,
-      [
-        crypto.randomUUID(),
-        businessId,
-        adminHash,
-      ]
+      [crypto.randomUUID(), businessId, adminHash]
     )
 
     for (const b of barbers) {
@@ -249,6 +346,10 @@ async function main() {
         ]
       )
 
+      if (barber.rows.length === 0) {
+        throw new Error(`Barber not found: ${r[2]}`)
+      }
+
       await client.query(
         `INSERT INTO "Review"
          ("id", "businessId","customerId","barberId","rating","comment")
@@ -280,14 +381,15 @@ async function main() {
       ]
     )
 
-    await client.query(
+    const customerRow = await client.query(
       `INSERT INTO "Customer"
        ("id", "businessId","userId","name","phone")
        VALUES ($1,$2,$3,$4,$5)
        ON CONFLICT ("businessId","phone")
        DO UPDATE SET
          "userId"=EXCLUDED."userId",
-         "name"=EXCLUDED."name"`,
+         "name"=EXCLUDED."name"
+       RETURNING "id"`,
       [
         crypto.randomUUID(),
         businessId,
@@ -297,29 +399,28 @@ async function main() {
       ]
     )
 
+    const customerId = customerRow.rows[0].id
+
     await client.query(
       `INSERT INTO "Loyalty"
        ("id", "businessId","customerId","points")
        SELECT
          gen_random_uuid(),
          $1,
-         "id",
+         $2,
          0
-       FROM "Customer"
-       WHERE "businessId"=$1
-         AND "phone"='994501234567'
-         AND NOT EXISTS (
-           SELECT 1
-           FROM "Loyalty"
-           WHERE "businessId"=$1
-             AND "customerId"="Customer"."id"
-         )`,
-      [businessId]
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM "Loyalty"
+         WHERE "businessId"=$1
+           AND "customerId"=$2
+       )`,
+      [businessId, customerId]
     )
 
     await client.query('COMMIT')
 
-    console.log(`\n✅ Stage 2 seed uğurla tamamlandı!`)
+    console.log('\n✅ Stage 2 seed uğurla tamamlandı!')
     console.log(`Demo şifrə: ${demoPassword}`)
     console.log('Admin: admin@kralbarber.local')
     console.log('Customer: customer@kralbarber.local')

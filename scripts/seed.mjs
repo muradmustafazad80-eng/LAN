@@ -51,9 +51,8 @@ async function main() {
   try {
     await client.query('BEGIN')
     const businessRes = await client.query(`SELECT "id" FROM "Business" WHERE "slug"='kral-barber' LIMIT 1`)
-    const business = businessRes.rows[0]
-    if (!business) throw new Error('Default business not found. Run npm run db:migrate first.')
-    const businessId = business.id
+    if (businessRes.rows.length === 0) throw new Error('Default business not found. Run npm run db:migrate first.')
+    const businessId = businessRes.rows[0].id
 
     for (const [name, price, duration, category, description] of services) {
       await client.query(`INSERT INTO "Service" ("id", "businessId", "name", "price", "duration", "category", "description", "status") VALUES ($1,$2,$3,$4,$5,$6,$7,'active') ON CONFLICT ("businessId","name") DO UPDATE SET "price"=EXCLUDED."price", "duration"=EXCLUDED."duration", "category"=EXCLUDED."category", "description"=EXCLUDED."description", "status"='active'`, [crypto.randomUUID(), businessId, name, price, duration, category, description])
@@ -71,7 +70,6 @@ async function main() {
       await client.query(`INSERT INTO "Barber" ("id", "businessId","userId","name","specialty","experience","image","status") VALUES ($1,$2,$3,$4,$5,$6,$7,'active') ON CONFLICT ("businessId","name") DO UPDATE SET "userId"=EXCLUDED."userId", "specialty"=EXCLUDED."specialty", "experience"=EXCLUDED."experience", "image"=EXCLUDED."image", "status"='active'`, [crypto.randomUUID(), businessId, user.rows[0].id, name, specialty, experience, image])
     }
 
-    // Bərbər iş saatları cədvəlindən "id" sütunu tamamilə silindi
     await client.query(`
       INSERT INTO "BarberSchedule" ("barberId","weekday","startTime","endTime","isWorking")
       SELECT "id", d.weekday,
@@ -84,6 +82,7 @@ async function main() {
       ON CONFLICT ("barberId","weekday") DO NOTHING
     `, [businessId])
 
+    // Səhv verən 70-ci sətir və BusinessSetting parametr sayı tam bərabərləşdirildi (4 sütun = 4 parametr)
     for (const [key, value] of settings) {
       await client.query(`INSERT INTO "BusinessSetting" ("id", "businessId","key","value") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","key") DO UPDATE SET "value"=EXCLUDED."value", "updatedAt"=now()`, [crypto.randomUUID(), businessId, key, value])
     }
@@ -103,7 +102,7 @@ async function main() {
     await client.query(`INSERT INTO "Loyalty" ("id", "businessId","customerId","points") SELECT gen_random_uuid(), $1,"id",0 FROM "Customer" WHERE "businessId"=$1 AND "phone"='994501234567' ON CONFLICT ("businessId","customerId") DO NOTHING`, [businessId])
 
     await client.query('COMMIT')
-    console.log(`Stage 2 seed hazırdır. Demo şifrə: ${demoPassword}`)
+    console.log(`✅ Stage 2 seed hazırdır. Demo şifrə: ${demoPassword}`)
     console.log('Admin: admin@kralbarber.local')
     console.log('Customer: customer@kralbarber.local')
     console.log('Barber: elvin@kralbarber.local / resad@kralbarber.local / kamran@kralbarber.local')

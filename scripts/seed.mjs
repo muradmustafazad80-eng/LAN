@@ -14,7 +14,7 @@ const services = [
   ['KRAL VIP Paket', 75, 75, 'VIP', 'Premium saç kəsimi|Saqqal formalaşdırma + ülgüc|Üz maskası və qulluq|Saç yuma & massaj|Pulsuz içki və qəlyan'],
 ]
 const barbers = [
-  ['Elvin Məmmədov', 'Baş Usta / Kurucu', '12 il təcrübə', '/images/barber-1.png', 'elvin@kralbarber.local'],
+  ['Elvin Məmmədov', 'Baş Usta / Qurucu', '12 il təcrübə', '/images/barber-1.png', 'elvin@kralbarber.local'],
   ['Rəşad Quliyev', 'Fade & Modern Kəsim Ustası', '7 il təcrübə', '/images/barber-2.png', 'resad@kralbarber.local'],
   ['Kamran Əliyev', 'Klassik Ülgüc & Saqqal Ustası', '15 il təcrübə', '/images/barber-3.png', 'kamran@kralbarber.local'],
 ]
@@ -36,7 +36,7 @@ const settings = [
 const reviews = [
   ['Tural H.', '994501000001', 'Elvin Məmmədov', 5, 'Şəhərdə ən yaxşı barbershop. Elvin usta işini mükəmməl bilir, hər dəfə tam istədiyim görünüşü alıram.'],
   ['Nicat A.', '994501000002', 'Rəşad Quliyev', 5, 'VIP paketi aldım — ülgüc təraş və üz maskası inanılmaz idi. Atmosfer həqiqətən premium.'],
-  ['Orxan M.', '994501000003', 'Kamran Əliyev', 5, 'Saqqal formalaşdırma üçün gəlirəm. Detallara diqqət və peşəkarlıq başqa səviyyədədir.'],
+  ['Orxan M.', '994501000003', 'Kamran Əliyev', 5, 'Saqqal formalaşdırma üçün gəlirəm. Detallara diqqət və peşəkarlık başqa səviyyədədir.'],
   ['Səməd V.', '994501000004', 'Elvin Məmmədov', 5, 'Rezervasiya sistemi çox rahatdır, gözləmə yoxdur. Qiymət-keyfiyyət balansı əladır.'],
 ]
 
@@ -55,25 +55,25 @@ async function main() {
     const businessId = business.id
 
     for (const [name, price, duration, category, description] of services) {
-      await client.query(`INSERT INTO "Service" ("businessId", "name", "price", "duration", "category", "description", "status") VALUES ($1,$2,$3,$4,$5,$6,'active') ON CONFLICT ("businessId","name") DO UPDATE SET "price"=EXCLUDED."price", "duration"=EXCLUDED."duration", "category"=EXCLUDED."category", "description"=EXCLUDED."description", "status"='active'`, [businessId, name, price, duration, category, description])
+      await client.query(`INSERT INTO "Service" ("id", "businessId", "name", "price", "duration", "category", "description", "status") VALUES ($1,$2,$3,$4,$5,$6,$7,'active') ON CONFLICT ("businessId","name") DO UPDATE SET "price"=EXCLUDED."price", "duration"=EXCLUDED."duration", "category"=EXCLUDED."category", "description"=EXCLUDED."description", "status"='active'`, [crypto.randomUUID(), businessId, name, price, duration, category, description])
     }
 
     const demoPassword = process.env.DEMO_PASSWORD || 'KralDemo123!'
     const adminHash = await hashPassword(process.env.DEMO_ADMIN_PASSWORD || demoPassword)
     const customerHash = await hashPassword(process.env.DEMO_CUSTOMER_PASSWORD || demoPassword)
 
-    const adminUser = await client.query(`INSERT INTO "User" ("businessId","email","passwordHash","role") VALUES ($1,'admin@kralbarber.local',$2,'admin') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='admin' RETURNING "id"`, [businessId, adminHash])
+    const adminUser = await client.query(`INSERT INTO "User" ("id", "businessId","email","passwordHash","role") VALUES ($1,$2,'admin@kralbarber.local',$3,'admin') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='admin' RETURNING "id"`, [crypto.randomUUID(), businessId, adminHash])
     const adminUserId = adminUser.rows[0].id
 
     for (const [name, specialty, experience, image, email] of barbers) {
       const passwordHash = await hashPassword(demoPassword)
-      const user = await client.query(`INSERT INTO "User" ("businessId","email","passwordHash","role") VALUES ($1,$2,$3,'barber') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='barber' RETURNING "id"`, [businessId, email, passwordHash])
-      await client.query(`INSERT INTO "Barber" ("businessId","userId","name","specialty","experience","image","status") VALUES ($1,$2,$3,$4,$5,$6,'active') ON CONFLICT ("businessId","name") DO UPDATE SET "userId"=EXCLUDED."userId", "specialty"=EXCLUDED."specialty", "experience"=EXCLUDED."experience", "image"=EXCLUDED."image", "status"='active'`, [businessId, user.rows[0].id, name, specialty, experience, image])
+      const user = await client.query(`INSERT INTO "User" ("id", "businessId","email","passwordHash","role") VALUES ($1,$2,$3,$4,'barber') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='barber' RETURNING "id"`, [crypto.randomUUID(), businessId, email, passwordHash])
+      await client.query(`INSERT INTO "Barber" ("id", "businessId","userId","name","specialty","experience","image","status") VALUES ($1,$2,$3,$4,$5,$6,$7,'active') ON CONFLICT ("businessId","name") DO UPDATE SET "userId"=EXCLUDED."userId", "specialty"=EXCLUDED."specialty", "experience"=EXCLUDED."experience", "image"=EXCLUDED."image", "status"='active'`, [crypto.randomUUID(), businessId, user.rows[0].id, name, specialty, experience, image])
     }
 
     await client.query(`
-      INSERT INTO "BarberSchedule" ("barberId","weekday","startTime","endTime","isWorking")
-      SELECT "id", d.weekday,
+      INSERT INTO "BarberSchedule" ("id", "barberId","weekday","startTime","endTime","isWorking")
+      SELECT gen_random_uuid(), "id", d.weekday,
              CASE WHEN d.weekday = 0 THEN '11:00'::time ELSE '10:00'::time END,
              CASE WHEN d.weekday = 0 THEN '20:00'::time ELSE '22:00'::time END,
              true
@@ -84,21 +84,23 @@ async function main() {
     `, [businessId])
 
     for (const [key, value] of settings) {
-      await client.query(`INSERT INTO "BusinessSetting" ("businessId","key","value") VALUES ($1,$2,$3) ON CONFLICT ("businessId","key") DO UPDATE SET "value"=EXCLUDED."value", "updatedAt"=now()`, [businessId, key, value])
+      await client.query(`INSERT INTO "BusinessSetting" ("id", "businessId","key","value") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","key") DO UPDATE SET "value"=EXCLUDED."value", "updatedAt"=now()`, [crypto.randomUUID(), businessId, key, value])
     }
 
     const customersByPhone = new Map()
     for (const [customerName, phone, barberName, rating, comment] of reviews) {
-      const customer = await client.query(`INSERT INTO "Customer" ("businessId","name","phone") VALUES ($1,$2,$3) ON CONFLICT ("businessId","phone") DO UPDATE SET "name"=EXCLUDED."name" RETURNING "id"`, [businessId, customerName, phone])
+      const customer = await client.query(`INSERT INTO "Customer" ("id", "businessId","name","phone") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","phone") DO UPDATE SET "name"=EXCLUDED."name" RETURNING "id"`, [crypto.randomUUID(), businessId, customerName, phone])
       customersByPhone.set(phone, customer.rows[0].id)
       const barber = await client.query(`SELECT "id" FROM "Barber" WHERE "businessId"=$1 AND "name"=$2 LIMIT 1`, [businessId, barberName])
-      await client.query(`INSERT INTO "Review" ("businessId","customerId","barberId","rating","comment") SELECT $1,$2,$3,$4,$5 WHERE NOT EXISTS (SELECT 1 FROM "Review" WHERE "businessId"=$1 AND "comment"=$5)`, [businessId, customer.rows[0].id, barber.rows[0].id, rating, comment])
+      
+      // Konflikt yaradan hissə sadə sətirlə əvəz olundu (Təkrar rəy xətası verməsin deyə)
+      await client.query(`INSERT INTO "Review" ("id", "businessId","customerId","barberId","rating","comment") VALUES ($1,$2,$3,$4,$5,$6)`, [crypto.randomUUID(), businessId, customer.rows[0].id, barber.rows[0].id, rating, comment])
     }
 
-    const demoCustomer = await client.query(`INSERT INTO "User" ("businessId","email","passwordHash","role") VALUES ($1,'customer@kralbarber.local',$2,'customer') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='customer' RETURNING "id"`, [businessId, customerHash])
-    await client.query(`INSERT INTO "Customer" ("businessId","userId","name","phone") VALUES ($1,$2,'Demo Müştəri','994501234567') ON CONFLICT ("businessId","phone") DO UPDATE SET "userId"=EXCLUDED."userId", "name"=EXCLUDED."name"`, [businessId, demoCustomer.rows[0].id])
+    const demoCustomer = await client.query(`INSERT INTO "User" ("id", "businessId","email","passwordHash","role") VALUES ($1,$2,'customer@kralbarber.local',$3,'customer') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='customer' RETURNING "id"`, [crypto.randomUUID(), businessId, customerHash])
+    await client.query(`INSERT INTO "Customer" ("id", "businessId","userId","name","phone") VALUES ($1,$2,$3,'Demo Müştəri','994501234567') ON CONFLICT ("businessId","phone") DO UPDATE SET "userId"=EXCLUDED."userId", "name"=EXCLUDED."name"`, [crypto.randomUUID(), businessId, demoCustomer.rows[0].id])
 
-    await client.query(`INSERT INTO "Loyalty" ("businessId","customerId","points") SELECT $1,"id",0 FROM "Customer" WHERE "businessId"=$1 AND "phone"='994501234567' ON CONFLICT ("businessId","customerId") DO NOTHING`, [businessId])
+    await client.query(`INSERT INTO "Loyalty" ("id", "businessId","customerId","points") SELECT gen_random_uuid(), $1,"id",0 FROM "Customer" WHERE "businessId"=$1 AND "phone"='994501234567' ON CONFLICT ("businessId","customerId") DO NOTHING`, [businessId])
 
     await client.query('COMMIT')
     console.log(`Stage 2 seed hazırdır. Demo şifrə: ${demoPassword}`)

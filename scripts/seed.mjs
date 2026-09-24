@@ -84,7 +84,8 @@ async function main() {
 
     for (const s of services) {
       await client.query(
-        `INSERT INTO "Service" ("id", "businessId", "name", "price", "duration", "category", "description", "status")
+        `INSERT INTO "Service"
+         ("id", "businessId", "name", "price", "duration", "category", "description", "status")
          VALUES ($1,$2,$3,$4,$5,$6,$7,'active')
          ON CONFLICT ("businessId","name")
          DO UPDATE SET
@@ -106,14 +107,16 @@ async function main() {
     }
 
     const demoPassword = process.env.DEMO_PASSWORD || 'KralDemo123!'
+
     const adminHash = await hashPassword(
       process.env.DEMO_ADMIN_PASSWORD || demoPassword
     )
+
     const customerHash = await hashPassword(
       process.env.DEMO_CUSTOMER_PASSWORD || demoPassword
     )
 
-    const adminUser = await client.query(
+    await client.query(
       `INSERT INTO "User"
        ("id", "businessId", "email", "passwordHash", "role")
        VALUES ($1,$2,'admin@kralbarber.local',$3,'admin')
@@ -305,7 +308,12 @@ async function main() {
        FROM "Customer"
        WHERE "businessId"=$1
          AND "phone"='994501234567'
-       ON CONFLICT ("businessId","customerId") DO NOTHING`,
+         AND NOT EXISTS (
+           SELECT 1
+           FROM "Loyalty"
+           WHERE "businessId"=$1
+             AND "customerId"="Customer"."id"
+         )`,
       [businessId]
     )
 

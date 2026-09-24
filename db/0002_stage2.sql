@@ -95,13 +95,26 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+ALTER TABLE "Customer" DROP CONSTRAINT IF EXISTS "Customer_phone_key";
 DROP INDEX IF EXISTS "Customer_phone_key";
+
+ALTER TABLE "Service" DROP CONSTRAINT IF EXISTS "Service_name_key";
 DROP INDEX IF EXISTS "Service_name_key";
+
 DROP INDEX IF EXISTS "Barber_name_key";
+
+ALTER TABLE "BusinessSetting" DROP CONSTRAINT IF EXISTS "BusinessSetting_key_key";
 DROP INDEX IF EXISTS "BusinessSetting_key_key";
-CREATE UNIQUE INDEX IF NOT EXISTS "Customer_businessPhone_key" ON "Customer" ("businessId", "phone");
-CREATE UNIQUE INDEX IF NOT EXISTS "Service_businessName_key" ON "Service" ("businessId", "name");
-CREATE UNIQUE INDEX IF NOT EXISTS "BusinessSetting_businessKey_key" ON "BusinessSetting" ("businessId", "key");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "Customer_businessPhone_key"
+ON "Customer" ("businessId", "phone");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "Service_businessName_key"
+ON "Service" ("businessId", "name");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "BusinessSetting_businessKey_key"
+ON "BusinessSetting" ("businessId", "key");
+
 CREATE INDEX IF NOT EXISTS "User_businessId_idx" ON "User" ("businessId");
 CREATE INDEX IF NOT EXISTS "User_businessRole_idx" ON "User" ("businessId", "role");
 CREATE INDEX IF NOT EXISTS "Customer_businessId_idx" ON "Customer" ("businessId");

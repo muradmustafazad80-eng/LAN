@@ -82,7 +82,7 @@ async function main() {
       ON CONFLICT ("barberId","weekday") DO NOTHING
     `, [businessId])
 
-    // Səhv verən 70-ci sətir və BusinessSetting parametr sayı tam bərabərləşdirildi (4 sütun = 4 parametr)
+    // Səhv yaradan BusinessSetting hissəsi tamamilə təmizləndi və sütun sayı ilə parametrlər bərabərləşdirildi (4 = 4)
     for (const [key, value] of settings) {
       await client.query(`INSERT INTO "BusinessSetting" ("id", "businessId","key","value") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","key") DO UPDATE SET "value"=EXCLUDED."value", "updatedAt"=now()`, [crypto.randomUUID(), businessId, key, value])
     }
@@ -102,7 +102,8 @@ async function main() {
     await client.query(`INSERT INTO "Loyalty" ("id", "businessId","customerId","points") SELECT gen_random_uuid(), $1,"id",0 FROM "Customer" WHERE "businessId"=$1 AND "phone"='994501234567' ON CONFLICT ("businessId","customerId") DO NOTHING`, [businessId])
 
     await client.query('COMMIT')
-    console.log(`✅ Stage 2 seed hazırdır. Demo şifrə: ${demoPassword}`)
+    console.log(`\n✅ Stage 2 seed uğurla tamamlandı!`)
+    console.log(`Demo şifrə: ${demoPassword}`)
     console.log('Admin: admin@kralbarber.local')
     console.log('Customer: customer@kralbarber.local')
     console.log('Barber: elvin@kralbarber.local / resad@kralbarber.local / kamran@kralbarber.local')

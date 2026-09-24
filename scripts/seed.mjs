@@ -37,7 +37,7 @@ const reviews = [
   ['Tural H.', '994501000001', 'Elvin Məmmədov', 5, 'Şəhərdə ən yaxşı barbershop. Elvin usta işini mükəmməl bilir, hər dəfə tam istədiyim görünüşü alıram.'],
   ['Nicat A.', '994501000002', 'Rəşad Quliyev', 5, 'VIP paketi aldım — ülgüc təraş və üz maskası inanılmaz idi. Atmosfer həqiqətən premium.'],
   ['Orxan M.', '994501000003', 'Kamran Əliyev', 5, 'Saqqal formalaşdırma üçün gəlirəm. Detallara diqqət və peşəkarlık başqa səviyyədədir.'],
-  ['Səməd V.', '994501000004', 'Elvin Məmmədov', 5, 'Rezervasiya sistemi çox rahatdır, gözləmə yoxdur. Qiymət-keyfiyyət balandır əladır.'],
+  ['Səməd V.', '994501000004', 'Elvin Məmmədov', 5, 'Rezervasiya sistemi çox rahatdır, gözləmə yoxdur. Qiymət-keyfiyyət balansı əladır.'],
 ]
 
 function hashPassword(password) {
@@ -88,11 +88,11 @@ async function main() {
 
     const customersByPhone = new Map()
     for (const [customerName, phone, barberName, rating, comment] of reviews) {
-      // Bütün parametrlər tam bərabərləşdirildi: 4 sütun = 4 dəyişən daxil edildi
       const customer = await client.query(`INSERT INTO "Customer" ("id", "businessId","name","phone") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","phone") DO UPDATE SET "name"=EXCLUDED."name" RETURNING "id"`, [crypto.randomUUID(), businessId, customerName, phone])
       customersByPhone.set(phone, customer.rows[0].id)
       const barber = await client.query(`SELECT "id" FROM "Barber" WHERE "businessId"=$1 AND "name"=$2 LIMIT 1`, [businessId, barberName])
       
+      // Bütün rows[0].id massiv parçalanmaları tam bərabərləşdirildi (6 sütun = 6 dəqiq parametr)
       await client.query(`INSERT INTO "Review" ("id", "businessId","customerId","barberId","rating","comment") VALUES ($1,$2,$3,$4,$5,$6)`, [crypto.randomUUID(), businessId, customer.rows[0].id, barber.rows[0].id, rating, comment])
     }
 

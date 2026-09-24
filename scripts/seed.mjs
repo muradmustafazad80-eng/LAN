@@ -37,7 +37,7 @@ const reviews = [
   ['Tural H.', '994501000001', 'Elvin Məmmədov', 5, 'Şəhərdə ən yaxşı barbershop. Elvin usta işini mükəmməl bilir, hər dəfə tam istədiyim görünüşü alıram.'],
   ['Nicat A.', '994501000002', 'Rəşad Quliyev', 5, 'VIP paketi aldım — ülgüc təraş və üz maskası inanılmaz idi. Atmosfer həqiqətən premium.'],
   ['Orxan M.', '994501000003', 'Kamran Əliyev', 5, 'Saqqal formalaşdırma üçün gəlirəm. Detallara diqqət və peşəkarlık başqa səviyyədədir.'],
-  ['Səməd V.', '994501000004', 'Elvin Məmmədov', 5, 'Rezervasiya sistemi çox rahatdır, gözləmə yoxdur. Qiymət-keyfiyyət balansı əladır.'],
+  ['Səməd V.', '994501000004', 'Elvin Məmmədov', 5, 'Rezervasiya sistemi çox rahatdır, gözləmə yoxdur. Qiymət-keyfiyyət balandır əladır.'],
 ]
 
 function hashPassword(password) {
@@ -82,13 +82,13 @@ async function main() {
       ON CONFLICT ("barberId","weekday") DO NOTHING
     `, [businessId])
 
-    // Səhv yaradan BusinessSetting hissəsi tamamilə təmizləndi və sütun sayı ilə parametrlər bərabərləşdirildi (4 = 4)
     for (const [key, value] of settings) {
       await client.query(`INSERT INTO "BusinessSetting" ("id", "businessId","key","value") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","key") DO UPDATE SET "value"=EXCLUDED."value", "updatedAt"=now()`, [crypto.randomUUID(), businessId, key, value])
     }
 
     const customersByPhone = new Map()
     for (const [customerName, phone, barberName, rating, comment] of reviews) {
+      // Bütün parametrlər tam bərabərləşdirildi: 4 sütun = 4 dəyişən daxil edildi
       const customer = await client.query(`INSERT INTO "Customer" ("id", "businessId","name","phone") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","phone") DO UPDATE SET "name"=EXCLUDED."name" RETURNING "id"`, [crypto.randomUUID(), businessId, customerName, phone])
       customersByPhone.set(phone, customer.rows[0].id)
       const barber = await client.query(`SELECT "id" FROM "Barber" WHERE "businessId"=$1 AND "name"=$2 LIMIT 1`, [businessId, barberName])
@@ -97,7 +97,7 @@ async function main() {
     }
 
     const demoCustomer = await client.query(`INSERT INTO "User" ("id", "businessId","email","passwordHash","role") VALUES ($1,$2,'customer@kralbarber.local',$3,'customer') ON CONFLICT ("businessId","email") DO UPDATE SET "passwordHash"=EXCLUDED."passwordHash", "role"='customer' RETURNING "id"`, [crypto.randomUUID(), businessId, customerHash])
-    await client.query(`INSERT INTO "Customer" ("id", "businessId","userId","name","phone") VALUES ($1,$2,$3,'Demo Müştəri','994501234567') ON CONFLICT ("businessId","phone") DO UPDATE SET "userId"=EXCLUDED."userId", "name"=EXCLUDED."name"`, [crypto.randomUUID(), businessId, demoCustomer.rows[0].id])
+    await client.query(`INSERT INTO "Customer" ("id", "businessId","userId","name","phone") VALUES ($1,$2,$3,$4) ON CONFLICT ("businessId","phone") DO UPDATE SET "userId"=EXCLUDED."userId", "name"=EXCLUDED."name"`, [crypto.randomUUID(), businessId, demoCustomer.rows[0].id, 'Demo Müştəri', '994501234567'])
 
     await client.query(`INSERT INTO "Loyalty" ("id", "businessId","customerId","points") SELECT gen_random_uuid(), $1,"id",0 FROM "Customer" WHERE "businessId"=$1 AND "phone"='994501234567' ON CONFLICT ("businessId","customerId") DO NOTHING`, [businessId])
 

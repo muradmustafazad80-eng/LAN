@@ -7,6 +7,10 @@ const NONCE_COOKIE = 'kral_google_nonce'
 const BUSINESS_COOKIE = 'kral_google_business'
 const ADMIN_COOKIE = 'kral_google_admin'
 
+// OAuth callbacks must always execute on the server and never be cached.
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 function errorCode(error: unknown) {
   const message = error instanceof Error ? error.message : ''
   if (message === 'BUSINESS_NOT_FOUND') return 'business_not_found'

@@ -49,9 +49,13 @@ function getPublicOrigin(request: Request) {
 }
 
 function getGoogleConfig(request: Request) {
-  const clientId = process.env.GOOGLE_CLIENT_ID?.trim()
+  // A client ID is an identifier, not a URL. Remove accidental protocol/slashes
+  // so a copied value such as "http://...apps.googleusercontent.com" cannot
+  // produce an invalid Google authorization request.
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim()
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI?.trim() || new URL('/api/auth/google/callback', `${getPublicOrigin(request)}/`).toString()
+  const configuredRedirectUri = process.env.GOOGLE_REDIRECT_URI?.trim()
+  const redirectUri = configuredRedirectUri || new URL('/api/auth/google/callback', `${getPublicOrigin(request)}/`).toString()
   if (!clientId || !clientSecret) throw new Error('GOOGLE_OAUTH_NOT_CONFIGURED')
   return { clientId, clientSecret, redirectUri }
 }

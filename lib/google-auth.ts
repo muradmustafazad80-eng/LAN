@@ -58,9 +58,20 @@ function getGoogleConfig(request: Request) {
   // deployed callback route is /api/auth/callback/google; accepting the old
   // /api/auth/google/callback value here causes Google's redirect_uri_mismatch.
   const configuredRedirectUri = process.env.GOOGLE_REDIRECT_URI?.trim()
-  const configuredOrigin = configuredRedirectUri ? new URL(configuredRedirectUri).origin : getPublicOrigin(request)
-  const redirectUri = new URL('/api/auth/callback/google', `${configuredOrigin}/`).toString()
   if (!clientId || !clientSecret) throw new Error('GOOGLE_OAUTH_NOT_CONFIGURED')
+
+  // Google compares redirect_uri byte-for-byte. When configured, send the exact
+  // URI from the environment instead of rebuilding it from request headers.
+  const redirectUri = configuredRedirectUri || new URL('/api/auth/callback/google', getPublicOrigin(request)).toString()
+  try {
+    const parsedRedirectUri = new URL(redirectUri)
+    if (parsedRedirectUri.protocol !== 'https:' && process.env.NODE_ENV === 'production') {
+      throw new Error('GOOGLE_REDIRECT_URI_INVALID')
+    }
+  } catch {
+    throw new Error('GOOGLE_REDIRECT_URI_INVALID')
+  }
+
   return { clientId, clientSecret, redirectUri }
 }
 

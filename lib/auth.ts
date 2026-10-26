@@ -106,7 +106,12 @@ export function normalizeEmail(email: string) { return email.trim().toLowerCase(
 export function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, '')
   if (digits.startsWith('994')) return digits
-  if (digits.startsWith('0') && digits.length === 10) return `994${digits.slice(1)}`
+  if (digits.startsWith('0')) return `994${digits.slice(1)}`
   return digits
+}
+
+export function isValidAzerbaijaniPhone(phone: string) {
+  const normalized = normalizePhone(phone)
+  return /^994(?:10|50|51|55|60|70|77|99)\d{7}$/.test(normalized)
 }
 export function isValidUuid(value: string) { return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) }

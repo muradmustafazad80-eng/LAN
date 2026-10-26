@@ -4,14 +4,14 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { barbers, bookings, customers, services } from '@/lib/schema'
-import { getCurrentUser, normalizePhone } from '@/lib/auth'
+import { getCurrentUser, isValidAzerbaijaniPhone, normalizePhone } from '@/lib/auth'
 import { consumeRateLimit } from '@/lib/rate-limit'
 import { hasBookingConflict, validateBookingWindow } from '@/lib/booking-rules'
 import { localDateTimeToDate } from '@/lib/time'
 
 const bookingSchema = z.object({
   customerName: z.string().trim().min(2).max(100),
-  customerPhone: z.string().trim().regex(/^\+?[0-9 ()-]{7,20}$/),
+  customerPhone: z.string().trim().refine(isValidAzerbaijaniPhone, 'Düzgün Azərbaycan mobil nömrəsi daxil edin.'),
   barberId: z.string().uuid(),
   serviceId: z.string().uuid(),
   dateTime: z.string().datetime({ local: true }),
@@ -78,11 +78,27 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingR
       return { success: true, bookingId: created.id }
     } catch (error) {
       if (error instanceof Error && error.message === 'BOOKING_PHONE_CONFLICT') return { success: false, error: 'Bu telefon nömrəsi başqa müştəriyə bağlıdır.', code: 'CONFLICT' }
-      if (error instanceof Error && 'code' in error && (error as { code?: string }).code === '23P01') return { success: false, error: 'Bu vaxt artıq tutulub. Başqa vaxt seçin.', code: 'CONFLICT' }
+      if (error instanceof Error && 'code' in error) {
+        const code = String((error as { code?: unknown }).code)
+        if (code === '23P01') return { success: false, error: 'Bu vaxt artıq tutulub. Başqa vaxt seçin.', code: 'CONFLICT' }
+        if (code === '42P01' || code === '42703') return { success: false, error: 'Rezervasiya bazası hazır deyil. Sistem administratoru bazanı yeniləməlidir.', code: 'DATABASE_NOT_READY' }
+      }
       throw error
     }
   } catch (error) {
-    console.error('createBooking', error)
+    const databaseCode = error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : ''
+    console.error('createBooking', { code: databaseCode, error })
+    if (databaseCode === '23P01' || databaseCode === '23505') {
+      return { success: false, error: 'Bu vaxt artıq tutulub. Başqa vaxt seçin.', code: 'CONFLICT' }
+    }
+    if (databaseCode === '42P01' || databaseCode === '42703') {
+      return { success: false, error: 'Rezervasiya bazası hazır deyil. Sistem administratoru bazanı yeniləməlidir.', code: 'DATABASE_NOT_READY' }
+    }
+    if (databaseCode === '23503' || databaseCode === '23514' || databaseCode === '23502' || databaseCode === '22P02') {
+      return { success: false, error: 'Rezervasiya məlumatları bazanın qaydalarına uyğun deyil. Seçimləri yeniləyib yenidən yoxlayın.', code: 'VALIDATION_ERROR' }
+    }
     return { success: false, error: 'Rezervasiya qeyd edilərkən server xətası baş verdi.', code: 'SERVER_ERROR' }
   }
 }

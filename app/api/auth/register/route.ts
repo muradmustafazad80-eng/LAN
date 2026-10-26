@@ -3,13 +3,13 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { customers, users } from '@/lib/schema'
-import { createSession, getBusinessBySlug, hashPassword, normalizeEmail, normalizePhone } from '@/lib/auth'
+import { createSession, getBusinessBySlug, hashPassword, isValidAzerbaijaniPhone, normalizeEmail, normalizePhone } from '@/lib/auth'
 import { consumeRateLimit } from '@/lib/rate-limit'
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Ad, soyad ən azı 2 simvol olmalıdır.').max(100),
   email: z.string().trim().email('Düzgün e-poçt ünvanı daxil edin.').max(160),
-  phone: z.string().trim().regex(/^\+?[0-9 ()-]{7,24}$/, 'Düzgün telefon nömrəsi daxil edin.'),
+  phone: z.string().trim().refine(isValidAzerbaijaniPhone, 'Düzgün Azərbaycan mobil nömrəsi daxil edin.'),
   password: z.string().min(8, 'Şifrə ən azı 8 simvol olmalıdır.').max(128),
   businessSlug: z.string().trim().min(2).max(80).optional(),
 })

@@ -113,6 +113,17 @@ export function ReservationSection() {
       return
     }
 
+    const phoneDigits = phone.replace(/\D/g, '')
+    const normalizedPhone = phoneDigits.startsWith('994')
+      ? phoneDigits
+      : phoneDigits.startsWith('0')
+        ? `994${phoneDigits.slice(1)}`
+        : phoneDigits
+    if (!/^994(?:10|50|51|55|60|70|77|99)\d{7}$/.test(normalizedPhone)) {
+      setError('Düzgün Azərbaycan mobil nömrəsi daxil edin: +994 XX XXX XX XX.')
+      return
+    }
+
     setSubmitting(true)
     setError('')
     try {
@@ -121,7 +132,7 @@ export function ReservationSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerName: name,
-          customerPhone: phone,
+          customerPhone: normalizedPhone,
           barberId,
           serviceId,
           dateTime: `${date}T${time}:00`,

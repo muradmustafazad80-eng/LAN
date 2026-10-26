@@ -2,15 +2,11 @@ import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
 import * as schema from './schema'
 
-const connectionString = process.env.DATABASE_URL
-
-if (!connectionString && process.env.NODE_ENV === 'production') {
-  throw new Error('DATABASE_URL environment variable is required in production.')
-}
+const connectionString = process.env.DATABASE_URL?.trim()
 
 const globalForDb = globalThis as unknown as { pool?: Pool }
 const pool = globalForDb.pool ?? new Pool({
-  connectionString: connectionString || 'postgresql://postgres:postgres@localhost:5432/postgres',
+  ...(connectionString ? { connectionString } : {}),
   max: 10,
 })
 

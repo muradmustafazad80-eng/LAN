@@ -43,13 +43,24 @@ export function AccountPanel({ initialUser }: { initialUser: { email: string; cu
   const minDate = useMemo(() => getDateInTimezone(new Date(), initialUser.businessTimezone), [initialUser.businessTimezone])
 
   async function load() {
-    const [bookingRes, barberRes, profileRes] = await Promise.all([fetch('/api/me/bookings', { cache: 'no-store' }), fetch(`/api/barbers?businessSlug=${encodeURIComponent(initialUser.businessSlug)}`, { cache: 'no-store' }), fetch('/api/me', { cache: 'no-store' })])
-    const bookingData = await bookingRes.json()
-    const barberData = await barberRes.json()
-    const profileData = await profileRes.json()
-    if (bookingData.success) setBookings(bookingData.bookings)
-    if (Array.isArray(barberData)) setBarbers(barberData)
-    if (profileData.success && profileData.profile) setProfile({ name: profileData.profile.name, phone: profileData.profile.phone })
+    const [bookingRes, barberRes, profileRes] = await Promise.all([
+      fetch('/api/me/bookings', { cache: 'no-store' }),
+      fetch(`/api/barbers?businessSlug=${encodeURIComponent(initialUser.businessSlug)}`, { cache: 'no-store' }),
+      fetch('/api/me', { cache: 'no-store' }),
+    ])
+    const [bookingData, barberData, profileData] = await Promise.all([
+      bookingRes.json(),
+      barberRes.json(),
+      profileRes.json(),
+    ])
+    if (!bookingRes.ok || !bookingData.success || !Array.isArray(bookingData.bookings)) {
+      throw new Error('BOOKINGS_LOAD_FAILED')
+    }
+    setBookings(bookingData.bookings)
+    if (barberRes.ok && Array.isArray(barberData)) setBarbers(barberData)
+    if (profileRes.ok && profileData.success && profileData.profile) {
+      setProfile({ name: profileData.profile.name, phone: profileData.profile.phone })
+    }
   }
 
   useEffect(() => { load().catch(() => setMessage('Məlumatlar yüklənmədi.')) }, [])

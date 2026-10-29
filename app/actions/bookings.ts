@@ -21,12 +21,21 @@ const bookingSchema = z.object({
 export type CreateBookingInput = z.infer<typeof bookingSchema>
 type BookingResult = { success: true; bookingId: string } | { success: false; error: string; code: string }
 
+async function canCreateBooking(key: string, limit: number) {
+  try {
+    return await consumeRateLimit(key, limit)
+  } catch (error) {
+    console.error('[v0] booking rate limit unavailable', error)
+    return true
+  }
+}
+
 export async function createBooking(input: CreateBookingInput): Promise<BookingResult> {
   const parsed = bookingSchema.safeParse(input)
   if (!parsed.success) return { success: false, error: 'Rezervasiya məlumatları düzgün deyil.', code: 'VALIDATION_ERROR' }
   try {
     const user = await getCurrentUser()
-    if (user?.role === 'customer' && !(await consumeRateLimit(`booking:user:${user.id}`, 6))) return { success: false, error: 'Çox sayda rezervasiya cəhdi edildi. Bir az sonra yenidən yoxlayın.', code: 'RATE_LIMITED' }
+    if (user?.role === 'customer' && !(await canCreateBooking(`booking:user:${user.id}`, 6))) return { success: false, error: 'Çox sayda rezervasiya cəhdi edildi. Bir az sonra yenidən yoxlayın.', code: 'RATE_LIMITED' }
 
     const business = await db.query.businesses.findFirst({ where: (t, { and, eq }) => and(eq(t.slug, parsed.data.businessSlug), eq(t.status, 'active')) })
     if (!business) return { success: false, error: 'Biznes tapılmadı.', code: 'NOT_FOUND' }
@@ -47,7 +56,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingR
     if (await hasBookingConflict(business.id, barber.id, start, windowCheck.end)) return { success: false, error: 'Bu vaxt artıq tutulub. Başqa vaxt seçin.', code: 'CONFLICT' }
 
     const normalizedPhone = normalizePhone(parsed.data.customerPhone)
-    if (!(await consumeRateLimit(`booking:phone:${business.id}:${normalizedPhone}`, 6))) return { success: false, error: 'Bu telefon nömrəsi ilə çox sayda rezervasiya cəhdi edildi. Bir az sonra yenidən yoxlayın.', code: 'RATE_LIMITED' }
+    if (!(await canCreateBooking(`booking:phone:${business.id}:${normalizedPhone}`, 6))) return { success: false, error: 'Bu telefon nömrəsi ilə çox sayda rezervasiya cəhdi edildi. Bir az sonra yenidən yoxlayın.', code: 'RATE_LIMITED' }
     try {
       const created = await db.transaction(async (tx) => {
         let customerId = user?.customerId || null

@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 const links = [
-  { id: 'xidmetler', label: 'Xidmətlər' },
+  { id: 'services', label: 'Xidmətlər' },
   { id: 'qiymetler', label: 'Qiymətlər' },
   { id: 'ustalar', label: 'Ustalar' },
   { id: 'reyler', label: 'Rəylər' },

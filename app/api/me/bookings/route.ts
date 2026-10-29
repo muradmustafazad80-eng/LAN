@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { and, desc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bookings, barbers, services } from '@/lib/schema'
+import { bookings, barbers, services, customers } from '@/lib/schema'
 import { getCurrentUser } from '@/lib/auth'
 
 export async function GET() {
@@ -20,10 +20,12 @@ export async function GET() {
     barberId: bookings.barberId,
     serviceId: bookings.serviceId,
     serviceName: services.name,
+    customerName: customers.name,
     duration: services.duration,
   }).from(bookings)
     .leftJoin(barbers, and(eq(bookings.barberId, barbers.id), eq(barbers.businessId, user.businessId)))
     .leftJoin(services, and(eq(bookings.serviceId, services.id), eq(services.businessId, user.businessId)))
+    .leftJoin(customers, and(eq(bookings.customerId, customers.id), eq(customers.businessId, user.businessId)))
     .where(and(eq(bookings.businessId, user.businessId), eq(bookings.customerId, user.customerId)))
     .orderBy(desc(bookings.dateTime))
 

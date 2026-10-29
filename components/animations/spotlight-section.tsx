@@ -28,6 +28,7 @@ export function SpotlightSection({
           ? { opacity: 1, y: 0, filter: 'brightness(1)' }
           : { opacity: 0.3, y: 0, filter: 'brightness(0.4)' }
       }
+      style={{ pointerEvents: 'auto' }}
       transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}

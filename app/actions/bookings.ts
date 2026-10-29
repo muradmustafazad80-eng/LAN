@@ -33,9 +33,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingR
 
     const start = localDateTimeToDate(parsed.data.dateTime, business.timezone)
     if (!start || start <= new Date()) return { success: false, error: 'Rezervasiya vaxtı keçmiş tarix ola bilməz.', code: 'VALIDATION_ERROR' }
-    if (!user) return { success: false, error: 'Rezervasiya etmək üçün əvvəlcə hesabınıza daxil olun.', code: 'UNAUTHORIZED' }
-    if (user.role !== 'customer' || !user.customerId) return { success: false, error: 'Rezervasiyanı yalnız müştəri hesabı ilə yaratmaq olar.', code: 'FORBIDDEN' }
-    if (user.businessId !== business.id) return { success: false, error: 'Bu biznes üçün girişiniz yoxdur.', code: 'FORBIDDEN' }
+    if (user && (user.role !== 'customer' || user.businessId !== business.id)) return { success: false, error: 'Bu biznes üçün rezervasiya etməyə icazəniz yoxdur.', code: 'FORBIDDEN' }
 
     const serviceRows = await db.select({ id: services.id, name: services.name, price: services.price, duration: services.duration }).from(services).where(and(eq(services.id, parsed.data.serviceId), eq(services.businessId, business.id), eq(services.status, 'active'))).limit(1)
     const barberRows = await db.select({ id: barbers.id, name: barbers.name }).from(barbers).where(and(eq(barbers.id, parsed.data.barberId), eq(barbers.businessId, business.id), eq(barbers.status, 'active'))).limit(1)
@@ -50,17 +48,25 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingR
 
     const normalizedPhone = normalizePhone(parsed.data.customerPhone)
     if (!(await consumeRateLimit(`booking:phone:${business.id}:${normalizedPhone}`, 6))) return { success: false, error: 'Bu telefon nömrəsi ilə çox sayda rezervasiya cəhdi edildi. Bir az sonra yenidən yoxlayın.', code: 'RATE_LIMITED' }
-    const customerId = user.customerId
-    if (!customerId) return { success: false, error: 'Müştəri profili tapılmadı.', code: 'FORBIDDEN' }
-
     try {
       const created = await db.transaction(async (tx) => {
-        try {
-          await tx.update(customers).set({ name: parsed.data.customerName, phone: normalizedPhone }).where(and(eq(customers.id, customerId), eq(customers.businessId, business.id)))
-        } catch (error) {
-          if (error instanceof Error && 'code' in error && (error as { code?: string }).code === '23505') throw new Error('BOOKING_PHONE_CONFLICT')
-          throw error
+        let customerId = user?.customerId || null
+        if (customerId) {
+          try {
+            await tx.update(customers).set({ name: parsed.data.customerName, phone: normalizedPhone }).where(and(eq(customers.id, customerId), eq(customers.businessId, business.id)))
+          } catch (error) {
+            if (error instanceof Error && 'code' in error && (error as { code?: string }).code === '23505') throw new Error('BOOKING_PHONE_CONFLICT')
+            throw error
+          }
+        } else {
+          const existing = await tx.select({ id: customers.id }).from(customers).where(and(eq(customers.businessId, business.id), eq(customers.phone, normalizedPhone))).limit(1)
+          customerId = existing[0]?.id || null
+          if (!customerId) {
+            const insertedCustomer = await tx.insert(customers).values({ businessId: business.id, name: parsed.data.customerName, phone: normalizedPhone }).returning({ id: customers.id })
+            customerId = insertedCustomer[0]?.id || null
+          }
         }
+        if (!customerId) throw new Error('BOOKING_CUSTOMER_FAILED')
 
         const inserted = await tx.insert(bookings).values({
           businessId: business.id,

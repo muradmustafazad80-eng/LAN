@@ -144,7 +144,7 @@ export function ReservationSection() {
       if (bookingRes.success) {
         setResult({ done: true, gift: false, name })
       } else if (res.status === 401) {
-        setError('Rezervasiya üçün əvvəlcə hesabınıza daxil olun. Sonra yenidən cəhd edin.')
+        setError('Rezervasiya üçün giriş tələb olunur. Səhifəni yeniləyib yenidən cəhd edin.')
       } else {
         setError(bookingRes.error || 'Rezervasiya yaradıla bilmədi.')
       }
@@ -252,7 +252,7 @@ export function ReservationSection() {
                   <GlowButton type="submit" full disabled={submitting || loadingOptions || loadingSlots || !barberId || !serviceId || !date || !time} className="bg-primary px-6 py-3.5 text-sm font-medium tracking-widest text-primary-foreground transition-opacity hover:opacity-90">
                     {submitting ? 'GÖNDƏRİLİR...' : 'TƏSDİQ ET'}
                   </GlowButton>
-                  <p className="text-center text-xs text-muted-foreground">Rezervasiya üçün hesabınıza daxil olmalısınız.</p>
+                  <p className="text-center text-xs text-muted-foreground">Hesabınız olmasa da rezervasiya edə bilərsiniz.</p>
                 </form>
               )}
             </div>
